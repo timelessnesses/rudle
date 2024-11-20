@@ -1,6 +1,6 @@
 # rudle
 
-A Wordle game written in Rust with CLI and Hard mode included with 19,000+ 5 letters words.
+A Wordle game written in Rust with CLI and Hard mode included with 15,000+ 5 letters words.
 
 ## Usage
 
