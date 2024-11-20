@@ -286,7 +286,7 @@ fn main() {
 fn options(game: &mut Game) {
     loop {
         clearscreen::clear().ok();
-        println!("{color_cyan}R U S D L E{color_reset}");
+        println!("{color_cyan}R U D L E{color_reset}");
         println!("Options:");
         println!(
             "1. Append/Replace to word list ({} words)",
@@ -346,9 +346,9 @@ fn options(game: &mut Game) {
 
 fn show_text(game: &Game) {
     if cfg!(debug_assertions) {
-        println!("{color_cyan}R U S D L E (Word is {}){color_reset}", game.word);
+        println!("{color_cyan}R U D L E (Word is {}){color_reset}", game.word);
     } else {
-        println!("{color_cyan}R U S D L E (Word is {} characters long) {color_reset}", game.word.len());
+        println!("{color_cyan}R U D L E (Word is {} characters long) {color_reset}", game.word.len());
     }
     println!(
         "{}",
@@ -382,9 +382,9 @@ fn play(game: &mut Game) {
     clearscreen::clear().ok();
     loop {
         if cfg!(debug_assertions) {
-            println!("{color_cyan}R U S D L E (Word is {}) (Tries: {}/{} Tries{}){color_reset}", game.word, game.tries, game.max_tries, if game.hard { " (Hard Mode)" } else { "" });
+            println!("{color_cyan}R U D L E (Word is {}) (Tries: {}/{} Tries{}){color_reset}", game.word, game.tries, game.max_tries, if game.hard { " (Hard Mode)" } else { "" });
         } else {
-            println!("{color_cyan}R U S D L E (Word is {} characters long) (Tries: {}/{} Tries{}){color_reset}", game.word.len(), game.tries, game.max_tries, if game.hard { " (Hard Mode)" } else { "" });
+            println!("{color_cyan}R U D L E (Word is {} characters long) (Tries: {}/{} Tries{}){color_reset}", game.word.len(), game.tries, game.max_tries, if game.hard { " (Hard Mode)" } else { "" });
         }
         let input = input(Some("Guess > "));
         let guesses = game.determine_guess(input);
@@ -434,7 +434,7 @@ fn calculate_guess_accuracy(guesses: Vec<Vec<Guess>>) -> f64 {
 fn help() {
     println!("{color_cyan}RUSDLE{color_reset}");
     println!(
-        "Welcome to {color_cyan}PORDLE{color_reset}! Please run the program with {bg_black}{color_bright_white}-h{color_reset}{bg_reset} for additional flags like hard mode! (or you can manually configure this inside the game)" 
+        "Welcome to {color_cyan}RUDLE{color_reset}! Please run the program with {bg_black}{color_bright_white}-h{color_reset}{bg_reset} for additional flags like hard mode! (or you can manually configure this inside the game)" 
     );
     println!(
         "Any configurable options can be changed with {bg_black}{color_bright_white}options{color_reset}{bg_reset} as the input!"
