@@ -1,453 +1,459 @@
-use clap;
-use clap::Parser;
-use inline_colorization::*;
-use rand::Rng;
-use serde_json;
-use std::collections::HashMap;
-use std::error::Error;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::PathBuf;
+#![allow(uncommon_codepoints)]
 
-#[derive(clap::Parser, Debug)]
-struct Cli {
-    #[clap(short, long)]
-    // specific word dictionary
-    word_dictionary: Option<PathBuf>,
-    #[clap(short, long, default_value_t = false)]
-    // append to the word list (if word_dictionary is specified. otherwise this will replace the dictionary)
-    append: bool,
-    #[clap(long, default_value_t = false)]
-    // hard mode (any yellow/green letters will need to be used on next guesses and green letters must stay where they are)
-    hard: bool,
-    #[clap(short, long, default_value_t = false)]
-    // turn words.json into corrected words.txt
-    format_json: bool,
-}
+sanim::sanim! {
+    ใช้ clap;
+    ใช้ clap::Parser;
+    ใช้ inline_colorization::*;
+    ใช้ rand::Rng;
+    ใช้ serde_json;
+    ใช้ std::collections::HashMap;
+    ใช้ std::error::Error;
+    ใช้ std::fs::File;
+    ใช้ std::io::{Read, Write};
+    ใช้ std::path::PathBuf;
 
-struct Dictionary {
-    words: Vec<String>,
-}
-
-impl Dictionary {
-    #[allow(dead_code)]
-    fn new() -> Self {
-        Self { words: Vec::new() }
+    #[ย่อย(clap::Parser, ดีบัก)]
+    ชุดข้อมูล Cli {
+        #[clap(short, long)]
+        /// ชุดไฟล์คำศัพท์ใหม่
+        คำศัพท์: เลือก<PathBuf>,
+        #[clap(short, long, default_value_t = เท็จ)]
+        /// ต่อคำศัพท์ไปยังชุดไฟล์คำศัพท์ (หากเป็นจริง จะต่อคำในชุดคำศัพท์เดิมถ้าคำศัพท์ใหม่มี ไม่งั้นจะเปลี่ยนชุดคำศัพท์เป็นคำศัพท์ใหม่) (ค่าเริ่มต้น: เท็จ)
+        ต่อคำศัพท์: bool,
+        #[clap(long, default_value_t = เท็จ)]
+        /// โหมดยาก (ตัวอักษรสีเหลือง/เขียวจะต้องใช้ในการเดาคำถัดไปและตัวอักษรสีเขียวต้องอยู่ที่ตำแหน่งเดิม) (ค่าเริ่มต้น: เท็จ)
+        ยาก: bool,
+        #[clap(short, long, default_value_t = เท็จ)]
+        /// เปลี่ยน words.json เป็น words.txt
+        แปลงไฟล์คำศัพท์_json: bool,
     }
 
-    fn load(&mut self, path: PathBuf, append: bool) -> Result<(), Box<dyn Error>> {
-        let mut file = File::open(path)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-        let mut words: Vec<String> = serde_json::from_str(&contents)?;
-        if append {
-            self.words.append(&mut words);
-        } else {
-            self.words = words;
+    ชุดข้อมูล คำศัพท์ {
+        คำ: เวคเตอร์<สตริง>,
+    }
+
+    วิธี คำศัพท์ {
+        #[อนุญาต(dead_code)]
+        ฟังก์ชัน ใหม่() -> ตนเอง {
+            ตนเอง { คำ: เวคเตอร์::ใหม่() }
         }
-        Ok(())
-    }
-
-    fn random(&self) -> String {
-        let mut rng = rand::thread_rng();
-        self.words[rng.gen_range(0..self.words.len())].clone()
-    }
-
-    fn have(&self, word: &str) -> bool {
-        self.words.contains(&word.to_string())
-    }
-}
-
-struct Game {
-    dictionary: Dictionary,
-    word: String,
-    guesses: Vec<Vec<Guess>>,
-    hard: bool,
-    playing: bool,
-    tries: u64,
-    max_tries: u64,
-    letter_counts: HashMap<char, i64>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Guess {
-    Correct(char),
-    Incorrect(char),
-    Missed(char),
-}
-
-impl Guess {
-    fn get_letter(&self) -> char {
-        match self {
-            Guess::Correct(letter) => *letter,
-            Guess::Incorrect(letter) => *letter,
-            Guess::Missed(letter) => *letter,
+    
+        ฟังก์ชัน โหลด(&แปรผัน ตน, เส้นทาง: PathBuf, ต่อ: bool) -> ผลลัพธ์<(), Box<พลวัต ข้อผิดพลาด>> {
+            ให้ แปรผัน ไฟล์ = File::open(เส้นทาง)?;
+            ให้ แปรผัน ข้อมูล = สตริง::ใหม่();
+            ไฟล์.อ่านเป็นสตริง(&แปรผัน ข้อมูล)?;   
+            ให้ แปรผัน คำ: เวคเตอร์<สตริง> = serde_json::from_str(&ข้อมูล)?;
+            ถ้า ต่อ {
+                ตน.คำ.append(&แปรผัน คำ);
+            } ไม่งั้น {
+                ตน.คำ = คำ;
+            }
+            โอเค(())
         }
-    }
-}
-
-impl Default for Dictionary {
-    fn default() -> Self {
-        let a: Vec<String> = serde_json::from_str(include_str!("../words.txt")).unwrap();
-        Self { words: a }
-    }
-}
-
-impl Game {
-    fn new(dictionary: Dictionary, hard: bool) -> Self {
-        Self {
-            dictionary,
-            word: "".to_string(),
-            guesses: Vec::new(),
-            hard,
-            playing: false,
-            tries: 1,
-            max_tries: 5,
-            letter_counts: HashMap::new(),
+    
+        ฟังก์ชัน สุ่ม(&ตน) -> สตริง {
+            ให้ แปรผัน สุ่ม = rand::thread_rng();
+            ตน.คำ[สุ่ม.gen_range(0..ตน.คำ.len())].โคลน()
+        }
+    
+        #[allow(non_snake_case)]
+        ฟังก์ชัน มี(&ตน, คำ: &str) -> bool {
+            ตน.คำ.contains(&คำ.เป็นสตริง())
         }
     }
 
-    fn play(&mut self) -> String {
-        self.playing = true;
-        let word;
-        // this was a test case for the [`Game::determine_guess`] lmao
-        if cfg!(debug_assertions) {
-            word = "teats".to_string();
-        } else {
-            word = self.dictionary.random();
-        }
-        self.word = word.clone();
-        self.letter_counts = word.chars().fold(HashMap::new(), |mut acc, letter| {
-            *acc.entry(letter).or_insert(0) += 1;
-            acc
-        });
-        word
+    ชุดข้อมูล เกม {
+        คำศัพท์: คำศัพท์,
+        คำ: สตริง,
+        เดา: เวคเตอร์<เวคเตอร์<เดา>>,
+        ยาก: bool,
+        กำลังเล่น: bool,
+        จำนวนครั้ง: จำนวนเต็มไม่ลบ,
+        จำนวนครั้งสูงสุด: จำนวนเต็มไม่ลบ,
+        นับตัวอักษร: แฮชแมพ<char, จำนวนเต็ม>,
     }
 
-    fn determine_guess(&mut self, input: String) -> Result<Vec<Guess>, Errors> {
-        if input.len() != self.word.len() {
-            return Err(Errors::WordLengthNotEqualsToGuessWord);
-        }
-        if !self.dictionary.have(&input) {
-            return Err(Errors::NoWordFound);
-        }
+    #[ย่อย(ดีบัก, โคลนนิ่ง, Copy, PartialEq, Eq)]
+    แจกแจง เดา {
+        ถูก(char),
+        ผิด(char),
+        พลาด(char),
+    }
 
-        if self.tries > self.max_tries {
-            return Err(Errors::MaximumTries(self.word.clone(), self.guesses.clone()));
+    วิธี เดา {
+        ฟังก์ชัน เอาตัวอักษร(&ตน) -> char {
+            จับคู่ ตน {
+                เดา::ถูก(อักษร) => *อักษร,
+                เดา::ผิด(อักษร) => *อักษร,
+                เดา::พลาด(อักษร) => *อักษร,
+            }
+        }
+    }
+
+    วิธี ปริยาย สำหรับ คำศัพท์ {
+        ฟังก์ชัน โดยปริยาย() -> ตนเอง {
+            ให้ คำศัพท์ตั้งต้น: เวคเตอร์<สตริง> = serde_json::from_str(include_str!("../words.txt")).แกะ();
+            ตนเอง { คำ: คำศัพท์ตั้งต้น }
+        }
+    }
+
+    วิธี เกม {
+        ฟังก์ชัน ใหม่(คำศัพท์: คำศัพท์, ยาก: bool) -> ตนเอง {
+            ตนเอง {
+                คำศัพท์,
+                คำ: "".เป็นสตริง(),
+                เดา: เวคเตอร์::ใหม่(),
+                ยาก,
+                กำลังเล่น: เท็จ,
+                จำนวนครั้ง: 1,
+                จำนวนครั้งสูงสุด: 5,
+                นับตัวอักษร: แฮชแมพ::ใหม่(),
+            }
+        }
+    
+        ฟังก์ชัน เล่น(&แปรผัน ตน) -> สตริง {
+            ตน.กำลังเล่น = จริง;
+            ให้ คำ;
+            ถ้า cfg!(debug_assertions) {
+                คำ = "teats".เป็นสตริง();
+            } ไม่งั้น {
+                คำ = ตน.คำศัพท์.สุ่ม();
+            }
+            ตน.คำ = คำ.โคลน();
+            ตน.นับตัวอักษร = คำ.chars().fold(แฮชแมพ::ใหม่(), |แปรผัน นับตัวอักษร, อักษร| {
+                *นับตัวอักษร.entry(อักษร).or_insert(0) += 1;
+                นับตัวอักษร
+            });
+            คำ
+        }
+    
+        ฟังก์ชัน ตรวจสอบการเดา(&แปรผัน ตน, ข้อมูลเข้า: สตริง) -> ผลลัพธ์<เวคเตอร์<เดา>, ข้อผิดพลาดต่างๆ> {
+            ถ้า ข้อมูลเข้า.len() != ตน.คำ.len() {
+                ให้ผล พลาด(ข้อผิดพลาดต่างๆ::ความยางของคำไม่เท่ากับความยาวของคำที่ต้องเดา);
+            }
+            ถ้า !ตน.คำศัพท์.มี(&ข้อมูลเข้า) {
+                ให้ผล พลาด(ข้อผิดพลาดต่างๆ::ไม่มีคำในชุดคำศัพท์);
+            }
+    
+            ถ้า ตน.จำนวนครั้ง >= ตน.จำนวนครั้งสูงสุด {
+                ให้ผล พลาด(ข้อผิดพลาดต่างๆ::หมดการพยายาม(ตน.คำ.โคลน(), ตน.เดา.โคลน()));
+            }
+            
+            ถ้า ตน.ยาก && ตน.เดา.len() != 0 { // check ถ้า ใน ยาก mode and ถ้า already guessed a คำ
+                ให้ เดาล่าสุด = ตน.เดา.last().แกะ();
+                ให้ ตำแหน่งตัวอักษรที่ถูก = เดาล่าสุด.iter().enumerate().filter(|(_, c)| {
+                    จับคู่ c {
+                        เดา::ถูก(_) => จริง,
+                        _ => เท็จ,
+                    }
+                }).map(|(ตำแหน่ง, อักษรเดา)| (ตำแหน่ง เป็น จำนวนเต็มไม่ลบ, อักษรเดา.เอาตัวอักษร())).เก็บเป็น::<เวคเตอร์<(จำนวนเต็มไม่ลบ, char)>>();
+                ให้ ตัวอักษรที่พลาด = เดาล่าสุด.iter().filter(|c| {
+                    จับคู่ c {
+                        เดา::พลาด(_) => จริง,
+                        _ => เท็จ,
+                    }
+                }).map(|i| i.เอาตัวอักษร()).เก็บเป็น::<เวคเตอร์<char>>();
+                ให้ อักษรทั้งหมดในคำ = ข้อมูลเข้า.chars().เก็บเป็น::<เวคเตอร์<char>>();
+                ถ้า !(ตำแหน่งตัวอักษรที่ถูก.len() == 0) {
+                    สำหรับ (ตำแหน่ง, อักษร) ใน ตำแหน่งตัวอักษรที่ถูก {
+                        ถ้า ให้ มี(อักษร2) = อักษรทั้งหมดในคำ.get(ตำแหน่ง เป็น usize) {
+                            ถ้า อักษร2 != &อักษร {
+                                ให้ผล พลาด(ข้อผิดพลาดต่างๆ::คำไม่ผ่านเกณฑ์โหมดยาก);
+                            }
+                        } ไม่งั้น {
+                            ให้ผล พลาด(ข้อผิดพลาดต่างๆ::คำไม่ผ่านเกณฑ์โหมดยาก);
+                        }
+                    }
+                    สำหรับ c ใน ตัวอักษรที่พลาด {
+                        ถ้า !(อักษรทั้งหมดในคำ.contains(&c)) {
+                            ให้ผล พลาด(ข้อผิดพลาดต่างๆ::คำไม่ผ่านเกณฑ์โหมดยาก);
+                        }
+                    }
+                }
+            }
+        
+            ให้ แปรผัน เดา = vec![เดา::ผิด('_'); ข้อมูลเข้า.len()];
+            ให้ แปรผัน จำนวนตัวอักษรที่ถูก = 0;
+            ให้ แปรผัน โคลนนับตัวอักษร = ตน.นับตัวอักษร.โคลน();
+        
+            สำหรับ (ตำแหน่ง, อักษร) ใน ข้อมูลเข้า.chars().enumerate() {
+                ถ้า ตน.คำ.chars().nth(ตำแหน่ง).แกะ() == อักษร {
+                    เดา[ตำแหน่ง] = เดา::ถูก(อักษร);
+                    จำนวนตัวอักษรที่ถูก += 1;
+                    โคลนนับตัวอักษร.entry(อักษร).and_modify(|x| *x -= 1);
+                }
+            }
+        
+            สำหรับ (ตำแหน่ง, อักษร) ใน ข้อมูลเข้า.chars().enumerate() {
+                ถ้า เดา[ตำแหน่ง] == เดา::ผิด('_') { // Only check remaining letters
+                    ถ้า ตน.คำ.contains(อักษร) && *โคลนนับตัวอักษร.entry(อักษร).or_insert(0) > 0 {
+                        เดา[ตำแหน่ง] = เดา::พลาด(อักษร);
+                        โคลนนับตัวอักษร.entry(อักษร).and_modify(|x| *x -= 1);
+                    } ไม่งั้น {
+                        เดา[ตำแหน่ง] = เดา::ผิด(อักษร);
+                    }
+                }
+            }
+        
+            ตน.เดา.push(เดา.โคลน());
+            ตน.จำนวนครั้ง += 1;
+        
+            ถ้า จำนวนตัวอักษรที่ถูก == ตน.คำ.len() {
+                ตน.กำลังเล่น = เท็จ;
+                ให้ โคลนเดา = ตน.เดา.โคลน();
+                ให้ จำนวนครั้ง = ตน.จำนวนครั้ง;
+                ให้ จำนวนครั้งสูงสุด = ตน.จำนวนครั้งสูงสุด;
+                ตน.รีเซ็ต();
+                ให้ผล พลาด(ข้อผิดพลาดต่างๆ::เกมจบชนะ(จำนวนครั้ง, จำนวนครั้งสูงสุด, โคลนเดา));
+            }
+            โอเค(เดา)
         }
         
-        if self.hard && self.guesses.len() != 0 { // check if in hard mode and if already guessed a word
-            let last = self.guesses.last().unwrap();
-            let correct_letter_poses = last.iter().enumerate().filter(|(_, c)| {
-                match c {
-                    Guess::Correct(_) => true,
-                    _ => false,
+        ฟังก์ชัน รีเซ็ต(&แปรผัน ตน) {
+            ตน.จำนวนครั้ง = 1;
+            ตน.เดา = เวคเตอร์::ใหม่();
+            ตน.นับตัวอักษร = แฮชแมพ::ใหม่();
+            ตน.คำ = "".เป็นสตริง();
+        }
+    }
+
+    #[ย่อย(ดีบัก, โคลนนิ่ง)]
+    enum ข้อผิดพลาดต่างๆ {
+        ไม่มีคำในชุดคำศัพท์,
+        ความยางของคำไม่เท่ากับความยาวของคำที่ต้องเดา,
+        คำไม่ผ่านเกณฑ์โหมดยาก,
+        หมดการพยายาม(สตริง,เวคเตอร์<เวคเตอร์<เดา>>),
+        เกมจบชนะ(จำนวนเต็มไม่ลบ, จำนวนเต็มไม่ลบ, เวคเตอร์<เวคเตอร์<เดา>>)
+    }
+
+    impl ToString สำหรับ ข้อผิดพลาดต่างๆ {
+        ฟังก์ชัน เป็นสตริง(&ตน) -> สตริง {
+            จับคู่ ตน {
+                ข้อผิดพลาดต่างๆ::ไม่มีคำในชุดคำศัพท์ => "No word found".เป็นสตริง(),
+                ข้อผิดพลาดต่างๆ::ความยางของคำไม่เท่ากับความยาวของคำที่ต้องเดา => {
+                    "Word length does not match the guess word length".เป็นสตริง()
                 }
-            }).map(|(i, c)| (i,c.get_letter())).collect::<Vec<(usize, char)>>();
-            let missed_letters = last.iter().filter(|c| {
-                match c {
-                    Guess::Missed(_) => true,
-                    _ => false,
-                }
-            }).map(|i| i.get_letter()).collect::<Vec<char>>();
-            let collected_chars = input.chars().collect::<Vec<char>>();
-            if !(correct_letter_poses.len() == 0) {
-                for (i, c) in correct_letter_poses {
-                    if let Some(ch) = collected_chars.get(i) {
-                        if ch != &c {
-                            return Err(Errors::InvalidWordInHardMode);
-                        }
-                    } else {
-                        return Err(Errors::InvalidWordInHardMode);
-                    }
-                }
-                for c in missed_letters {
-                    if !(collected_chars.contains(&c)) {
-                        return Err(Errors::InvalidWordInHardMode);
-                    }
-                }
+                ข้อผิดพลาดต่างๆ::คำไม่ผ่านเกณฑ์โหมดยาก => "Invalid word ใน hard mode".เป็นสตริง(),
+                ข้อผิดพลาดต่างๆ::หมดการพยายาม(_, _) => "Maximum tries reached".เป็นสตริง(),
+                ข้อผิดพลาดต่างๆ::เกมจบชนะ(_,_,_) => "Game ended with a win, please restart the game".เป็นสตริง(),
             }
         }
+    }
+
+    ฟังก์ชัน main() {
+        better_panic::Settings::ใหม่()
+            .lineno_suffix(จริง)
+            .verbosity(better_panic::Verbosity::Full)
+            .install();
     
-        let mut guesses = vec![Guess::Incorrect('_'); input.len()];
-        let mut correct_letters = 0;
-        let mut cloned_word = self.letter_counts.clone();
-    
-        for (i, letter) in input.chars().enumerate() {
-            if self.word.chars().nth(i).unwrap() == letter {
-                guesses[i] = Guess::Correct(letter);
-                correct_letters += 1;
-                cloned_word.entry(letter).and_modify(|x| *x -= 1);
-            }
-        }
-    
-        for (i, letter) in input.chars().enumerate() {
-            if guesses[i] == Guess::Incorrect('_') { // Only check remaining letters
-                if self.word.contains(letter) && *cloned_word.entry(letter).or_insert(0) > 0 {
-                    guesses[i] = Guess::Missed(letter);
-                    cloned_word.entry(letter).and_modify(|x| *x -= 1);
-                } else {
-                    guesses[i] = Guess::Incorrect(letter);
+        ให้ cli = Cli::parse();
+        ให้ แปรผัน เกม = เกม::ใหม่(คำศัพท์::default(), cli.ยาก);
+        ถ้า cli.แปลงไฟล์คำศัพท์_json {
+            ให้ แปรผัน ไฟล์ = File::open("words.json").แกะ();
+            ให้ แปรผัน ข้อมูล = สตริง::ใหม่();
+            ไฟล์.อ่านเป็นสตริง(&แปรผัน ข้อมูล).แกะ();
+            ให้ คำต่างๆ: แฮชแมพ<สตริง, u8> = serde_json::from_str(&ข้อมูล).แกะ();
+            ให้ แปรผัน แปลงใหม่ = เวคเตอร์::ใหม่();
+            สำหรับ (คำ, _) ใน คำต่างๆ {
+                ถ้า คำ.len() == 5 {
+                    แปลงใหม่.push(คำ);
                 }
             }
+            serde_json::to_writer_pretty(File::create("words.txt").แกะ(), &แปลงใหม่).แกะ();
+            ให้ผล;
         }
     
-        self.guesses.push(guesses.clone());
-        self.tries += 1;
-    
-        if correct_letters == self.word.len() {
-            self.playing = false;
-            let cloned_guesses = self.guesses.clone();
-            let tries = self.tries;
-            let max_tries = self.max_tries;
-            self.reset();
-            return Err(Errors::GameEndedWin(tries, max_tries, cloned_guesses));
+        ถ้า ให้ มี(เส้นทาง) = cli.คำศัพท์ {
+            เกม.คำศัพท์
+                .โหลด(เส้นทาง, cli.ต่อคำศัพท์)
+                .expect("Failed to load additonal word dictionary");
         }
-        Ok(guesses)
-    }
-    
-    fn reset(&mut self) {
-        self.tries = 1;
-        self.guesses = Vec::new();
-        self.letter_counts = HashMap::new();
-        self.word = "".to_string();
-    }
-}
-
-#[derive(Debug, Clone)]
-enum Errors {
-    NoWordFound,
-    WordLengthNotEqualsToGuessWord,
-    InvalidWordInHardMode,
-    MaximumTries(String,Vec<Vec<Guess>>),
-    GameEndedWin(u64, u64, Vec<Vec<Guess>>)
-}
-
-impl ToString for Errors {
-    fn to_string(&self) -> String {
-        match self {
-            Errors::NoWordFound => "No word found".to_string(),
-            Errors::WordLengthNotEqualsToGuessWord => {
-                "Word length does not match guess word length".to_string()
-            }
-            Errors::InvalidWordInHardMode => "Invalid word in hard mode".to_string(),
-            Errors::MaximumTries(_, _) => "Maximum tries reached".to_string(),
-            Errors::GameEndedWin(_,_,_) => "Game ended with a win, please restart the game".to_string(),
-        }
-    }
-}
-
-fn main() {
-    better_panic::Settings::new()
-        .lineno_suffix(true)
-        .verbosity(better_panic::Verbosity::Full)
-        .install();
-
-    let cli = Cli::parse();
-    let mut game = Game::new(Dictionary::default(), cli.hard);
-    if cli.format_json {
-        let mut file = File::open("words.json").unwrap();
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).unwrap();
-        let words: HashMap<String, u8> = serde_json::from_str(&contents).unwrap();
-        let mut formatted = Vec::new();
-        for (word, _) in words {
-            if word.len() == 5 {
-                formatted.push(word);
-            }
-        }
-        serde_json::to_writer_pretty(File::create("words.txt").unwrap(), &formatted).unwrap();
-        return;
-    }
-
-    if let Some(path) = cli.word_dictionary {
-        game.dictionary
-            .load(path, cli.append)
-            .expect("Failed to load additonal word dictionary");
-    }
-    clearscreen::clear().ok();
-    help();
-    loop {
-        let a = input(Some("Selection > "));
-        if a.to_lowercase() == "help" {
-            help();
-        } else if a.to_lowercase() == "play" {
-            play(&mut game);
-        } else if a.to_lowercase() == "options" {
-            options(&mut game);
-        } else if a.to_lowercase() == "exit" {
-            break;
-        } else {
-            println!("No options found");
-        }
-    }
-}
-
-fn options(game: &mut Game) {
-    loop {
         clearscreen::clear().ok();
-        println!("{color_cyan}R U D L E{color_reset}");
-        println!("Options:");
-        println!(
-            "1. Append/Replace to word list ({} words)",
-            game.dictionary.words.len()
-        );
-        println!("2. Hard mode (yellow/green letters will need to be used on next guesses and green letters must stay where they are) ({})", if game.hard { "on" } else { "off" });
-        println!("3. Tries ({} tries)", game.max_tries);
-        println!("4. Exit");
+        ช่วยเหลือ();
+        วน {
+            ให้ a = รับข้อมูลเข้า(มี("Selection > "));
+            ถ้า a.to_lowercase() == "help" {
+                ช่วยเหลือ();
+            } ไม่งั้น ถ้า a.to_lowercase() == "play" {
+                เล่น(&แปรผัน เกม);
+            } ไม่งั้น ถ้า a.to_lowercase() == "options" {
+                การตั้งค่า(&แปรผัน เกม);
+            } ไม่งั้น ถ้า a.to_lowercase() == "exit" {
+                ยกเลิก;
+            } ไม่งั้น {
+                พิมพ์บรรทัด!("No options found");
+            }
+        }
+    }
 
-        let ask = input(Some("Option > "));
-        if ask.to_lowercase() == "1" {
-            let append_or_replace =
-                match input(Some("Append or Replace to word list? (True/False) > "))
-                    .to_lowercase()
-                    .as_str()
-                {
-                    "true" => true,
-                    "false" => false,
-                    _ => false,
+    ฟังก์ชัน การตั้งค่า(เกม: &แปรผัน เกม) {
+        วน {
+            clearscreen::clear().ok();
+            พิมพ์บรรทัด!("{color_cyan}R U D L E{color_reset}");
+            พิมพ์บรรทัด!("Options:");
+            พิมพ์บรรทัด!(
+                "1. Append/Replace to word list ({} words)",
+                เกม.คำศัพท์.คำ.len()
+            );
+            พิมพ์บรรทัด!("2. Hard mode (yellow/green letters will need to be used on next guess and green letters must stay where they are) ({})", ถ้า เกม.ยาก { "on" } ไม่งั้น { "off" });
+            พิมพ์บรรทัด!("3. Tries ({} Tries)", เกม.จำนวนครั้งสูงสุด);
+            พิมพ์บรรทัด!("4. Exit");
+    
+            ให้ ถาม = รับข้อมูลเข้า(มี("เลือก > "));
+            ถ้า ถาม.to_lowercase() == "1" {
+                ให้ ต่อหรือเปลี่่ยน =
+                    จับคู่ รับข้อมูลเข้า(มี("Append or Replace to word list? (true/false) > "))
+                        .to_lowercase()
+                        .เป็นสตร()
+                    {
+                        "true" => จริง,
+                        "false" => เท็จ,
+                        _ => เท็จ,
+                    };
+                วน {
+                    ให้ เส้นทาง = รับข้อมูลเข้า(มี("Append to word list (type q to exit) (File path required) > "));
+                    ถ้า เส้นทาง.to_lowercase() == "q" {
+                        ยกเลิก;
+                    }
+                    จับคู่ เกม
+                        .คำศัพท์
+                        .โหลด(PathBuf::from(เส้นทาง), ต่อหรือเปลี่่ยน)
+                    {
+                        โอเค(()) => {
+                            พิมพ์บรรทัด!("{color_green}Loaded Successfully.{color_reset}");
+                            ยกเลิก;
+                        }
+                        พลาด(e) => {
+                            พิมพ์บรรทัด!(
+                                "{color_red}Failed to load.{color_reset} ({})",
+                                e.เป็นสตริง()
+                            )
+                        }
+                    }
+                }
+            } ไม่งั้น ถ้า ถาม.to_lowercase() == "2" {
+                เกม.ยาก = !เกม.ยาก;
+                พิมพ์บรรทัด!("Hard mode is now {}", ถ้า เกม.ยาก { "on" } ไม่งั้น { "off" });
+            } ไม่งั้น ถ้า ถาม.to_lowercase() == "3" {
+                ให้ ครั้งสูงสุด = จับคู่ รับข้อมูลเข้า(มี("Tries (type q to use default) > ")).to_lowercase().เป็นสตร() {
+                    "q" => 5,
+                    _ => รับข้อมูลเข้า(มี("Tries (type q to use default) > ")).parse::<จำนวนเต็มไม่ลบ>().แกะ(),
                 };
-            loop {
-                let option = input(Some("Append to word list (type q) (File path required) > "));
-                if option.to_lowercase() == "q" {
-                    break;
-                }
-                match game
-                    .dictionary
-                    .load(PathBuf::from(option), append_or_replace)
-                {
-                    Ok(()) => {
-                        println!("{color_green}Loaded Successfully.{color_reset}");
-                        break;
-                    }
-                    Err(e) => {
-                        println!(
-                            "{color_red}Failed to load.{color_reset} ({})",
-                            e.to_string()
-                        )
-                    }
-                }
+                เกม.จำนวนครั้งสูงสุด = ครั้งสูงสุด;
+                พิมพ์บรรทัด!("Tries is now {}", ครั้งสูงสุด);
+            } ไม่งั้น {
+                ยกเลิก;
             }
-        } else if ask.to_lowercase() == "2" {
-            game.hard = !game.hard;
-            println!("Hard mode is now {}", if game.hard { "on" } else { "off" });
-        } else if ask.to_lowercase() == "3" {
-            let tries = match input(Some("Tries (type q) > ")).to_lowercase().as_str() {
-                "q" => 5,
-                _ => input(Some("Tries (type q) > ")).parse::<u64>().unwrap(),
-            };
-            game.max_tries = tries;
-            println!("Tries is now {}", tries);
-        } else {
-            break;
         }
     }
-}
-
-fn show_text(game: &Game) {
-    if cfg!(debug_assertions) {
-        println!("{color_cyan}R U D L E (Word is {}){color_reset}", game.word);
-    } else {
-        println!("{color_cyan}R U D L E (Word is {} characters long) {color_reset}", game.word.len());
-    }
-    println!(
-        "{}",
-        game.guesses
-            .iter()
-            .map(|i| {
-                i.iter()
-                    .map(|j| match j {
-                        Guess::Correct(letter) => {
-                            format!("{bg_green}{color_black}{}{color_reset}{bg_reset}", letter)
-                        }
-                        Guess::Incorrect(letter) => {
-                            format!("{bg_red}{color_black}{}{color_reset}{bg_reset}", letter)
-                        }
-                        Guess::Missed(letter) => {
-                            format!("{bg_yellow}{color_black}{}{color_reset}{bg_reset}", letter)
-                        }
-                    })
-                    .collect()
-            })
-            .collect::<Vec<Vec<String>>>()
-            .iter()
-            .map(|i| { i.join(" ") })
-            .collect::<Vec<String>>()
-            .join("\n\n")
-    );
-}
-
-fn play(game: &mut Game) {
-    game.play();
-    clearscreen::clear().ok();
-    loop {
-        if cfg!(debug_assertions) {
-            println!("{color_cyan}R U D L E (Word is {}) (Tries: {}/{} Tries{}){color_reset}", game.word, game.tries, game.max_tries, if game.hard { " (Hard Mode)" } else { "" });
-        } else {
-            println!("{color_cyan}R U D L E (Word is {} characters long) (Tries: {}/{} Tries{}){color_reset}", game.word.len(), game.tries, game.max_tries, if game.hard { " (Hard Mode)" } else { "" });
+    
+    ฟังก์ชัน แสดงข้อความ(เกม: &เกม) {
+        ถ้า cfg!(debug_assertions) {
+            พิมพ์บรรทัด!("{color_cyan}R U D L E (Word is {}){color_reset}", เกม.คำ);
+        } ไม่งั้น {
+            พิมพ์บรรทัด!("{color_cyan}R U D L E (Word is {} characters long) {color_reset}", เกม.คำ.len());
         }
-        let input = input(Some("Guess > "));
-        let guesses = game.determine_guess(input);
-        match guesses {
-            Ok(_) => {
-                clearscreen::clear().ok();
-                show_text(game);
-                println!();
+        พิมพ์บรรทัด!(
+            "{}",
+            เกม.เดา
+                .iter()
+                .map(|คำ| {
+                    คำ.iter()
+                        .map(|อักษร| จับคู่ อักษร {
+                            เดา::ถูก(อักษร) => {
+                                format!("{bg_green}{color_black}{}{color_reset}{bg_reset}", อักษร)
+                            }
+                            เดา::ผิด(อักษร) => {
+                                format!("{bg_red}{color_black}{}{color_reset}{bg_reset}", อักษร)
+                            }
+                            เดา::พลาด(อักษร) => {
+                                format!("{bg_yellow}{color_black}{}{color_reset}{bg_reset}", อักษร)
+                            }
+                        })
+                        .เก็บเป็น()
+                })
+                .เก็บเป็น::<เวคเตอร์<เวคเตอร์<สตริง>>>()
+                .iter()
+                .map(|อักษรทั้งหมด| { อักษรทั้งหมด.join(" ") })
+                .เก็บเป็น::<เวคเตอร์<สตริง>>()
+                .join("\n\n")
+        );
+    }
+    
+    ฟังก์ชัน เล่น(เกม: &แปรผัน เกม) {
+        เกม.เล่น();
+        clearscreen::clear().ok();
+        วน {
+            ถ้า cfg!(debug_assertions) {
+                พิมพ์บรรทัด!("{color_cyan}R U D L E (Word is {}) (Tries: {}/{} Tries{}){color_reset}", เกม.คำ, เกม.จำนวนครั้ง, เกม.จำนวนครั้งสูงสุด, ถ้า เกม.ยาก { " (Hard Mode)" } ไม่งั้น { "" });
+            } ไม่งั้น {
+                พิมพ์บรรทัด!("{color_cyan}R U D L E (Word is {} characters long) (Tries: {}/{} Tries{}){color_reset}", เกม.คำ.len(), เกม.จำนวนครั้ง, เกม.จำนวนครั้งสูงสุด, ถ้า เกม.ยาก { " (Hard Mode)" } ไม่งั้น { "" });
             }
-            Err(e) => match e {
-                Errors::MaximumTries(word, guesses) => {
-                    show_text(game);
-                    println!("{color_yellow}Maximum tries reached, exiting...{color_reset}");
-                    println!("{color_red}The word was {}{color_reset}", word);
-                    println!("{color_green}Your accuracy is {}%{color_reset}", calculate_guess_accuracy(guesses) * 100.0);
-                    break;
+            ให้ ข้อมูลเข้า = รับข้อมูลเข้า(มี("Guess  > "));
+            ให้ เดา = เกม.ตรวจสอบการเดา(ข้อมูลเข้า);
+            จับคู่ เดา {
+                โอเค(_) => {
+                    clearscreen::clear().ok();
+                    แสดงข้อความ(เกม);
+                    พิมพ์บรรทัด!();
+                }
+                #[allow(non_snake_case)]
+                พลาด(ข้อผิดพลาด) => จับคู่ ข้อผิดพลาด {
+                    ข้อผิดพลาดต่างๆ::หมดการพยายาม(คำ, เดา) => {
+                        clearscreen::clear().ok();
+                        แสดงข้อความ(เกม);
+                        พิมพ์บรรทัด!("{color_yellow}Maximum tries reached, exiting...{color_reset}");
+                        พิมพ์บรรทัด!("{color_red}The word  was {}{color_reset}", คำ);
+                        พิมพ์บรรทัด!("{color_green}Your accuracy is {}%{color_reset}", คำนวณความถูกต้องของการเดา(เดา) * 100.0);
+                        ยกเลิก;
+                    },
+                    ข้อผิดพลาดต่างๆ::เกมจบชนะ(จำนวนครั้ง, จำนวนครั้งสูงสุด, เดา) => {
+                        พิมพ์บรรทัด!("{color_green}You win!{color_reset}");
+                        พิมพ์บรรทัด!("{bg_black}{color_bright_white} Took {}/{} tries.{color_reset}{bg_reset}", จำนวนครั้ง - 1, จำนวนครั้งสูงสุด);
+                        พิมพ์บรรทัด!("{color_green}Your accuracy is {}%{color_reset}", คำนวณความถูกต้องของการเดา(เดา.โคลน()) * 100.0);
+                        ยกเลิก;
+                    }
+                    _ => {
+                        พิมพ์บรรทัด!("{color_red}ERROR: {}{color_reset}", ข้อผิดพลาด.เป็นสตริง());
+                    }
                 },
-                Errors::GameEndedWin(tries, max_tries, guesses) => {
-                    println!("{color_green}You win!{color_reset}");
-                    println!("{bg_black}{color_bright_white} Took {}/{} tries.{color_reset}{bg_reset}", tries - 1, max_tries);
-                    println!("{color_green}Your accuracy is {}%{color_reset}", calculate_guess_accuracy(guesses.clone()) * 100.0);
-                    break;
-                }
-                _ => {
-                    println!("{color_red}ERROR: {}{color_reset}", e.to_string());
-                }
-            },
-        }
-    }
-}
-
-fn calculate_guess_accuracy(guesses: Vec<Vec<Guess>>) -> f64 {
-    let mut points = 0.0;
-    let maximum_possible_point = guesses.first().unwrap().len() * 2; // 2 points per correct letter
-    for guess in &guesses {
-        for g in guess {
-            if let Guess::Correct(_) = g { points += 2.0; }
-            else if let Guess::Missed(_) = g { points += 1.0; }
-            else {
-                points -= 0.5;
             }
         }
     }
-    (points as f64 / guesses.len() as f64) / maximum_possible_point as f64
-}
-
-fn help() {
-    println!("{color_cyan}RUDLE{color_reset}");
-    println!(
-        "Welcome to {color_cyan}RUDLE{color_reset}! Please run the program with {bg_black}{color_bright_white}-h{color_reset}{bg_reset} for additional flags like hard mode! (or you can manually configure this inside the game)" 
+    
+    ฟังก์ชัน คำนวณความถูกต้องของการเดา(เดา: เวคเตอร์<เวคเตอร์<เดา>>) -> ทศนิยม {
+        ให้ แปรผัน คะแนน = 0.0;
+        ให้ คะแนนที่มากที่สุด = เดา.first().แกะ().len() * 2; // 2 points per correct letter
+        สำหรับ เดา ใน &เดา {
+            สำหรับ g ใน เดา {
+                ถ้า ให้ เดา::ถูก(_) = g { คะแนน += 2.0; }
+                ไม่งั้น ถ้า ให้ เดา::พลาด(_) = g { คะแนน += 1.0; }
+                ไม่งั้น {
+                    คะแนน -= 0.5;
+                }
+            }
+        }
+        (คะแนน เป็น ทศนิยม / เดา.len() เป็น ทศนิยม) / คะแนนที่มากที่สุด เป็น ทศนิยม
+    }
+    
+    ฟังก์ชัน ช่วยเหลือ() {
+        พิมพ์บรรทัด!("{color_cyan}RUDLE{color_reset}");
+        พิมพ์บรรทัด!(
+            "Welcome to {color_cyan}RUDLE{color_reset}! Please run the program with {bg_black}{color_bright_white}-h{color_reset}{bg_reset} for additional flags like hard mode! (or you can manually configure this inside the game)" 
     );
-    println!(
-        "Any configurable options can be changed with {bg_black}{color_bright_white}options{color_reset}{bg_reset} as the input!"
-    );
-    println!(
-        "And when you are ready to play, type {bg_black}{color_bright_white}play{color_reset}{bg_reset}!"
-    );
-}
-
-fn input(ask: Option<&str>) -> String {
-    print!("{}", ask.unwrap_or(""));
-    std::io::stdout().flush().unwrap();
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    input.trim_end().to_string()
+        พิมพ์บรรทัด!(
+            "Any configurable options can be changed with {bg_black}{color_bright_white}options{color_reset}{bg_reset} as the input!"
+        );
+        พิมพ์บรรทัด!(
+            "And when you are ready to play, type {bg_black}{color_bright_white}play{color_reset}{bg_reset}!"
+        );
+    }
+    
+    ฟังก์ชัน รับข้อมูลเข้า(ถาม: เลือก<&str>) -> สตริง {
+        พิมพ์!("{}", ถาม.unwrap_or(""));
+        std::io::stdout().flush().แกะ();
+        ให้ แปรผัน ข้อมูลเข้า = สตริง::ใหม่();
+        std::io::stdin().read_line(&แปรผัน ข้อมูลเข้า).แกะ();
+        ข้อมูลเข้า.trim_end().เป็นสตริง()
+    }
 }
