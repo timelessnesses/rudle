@@ -432,7 +432,7 @@ fn calculate_guess_accuracy(guesses: Vec<Vec<Guess>>) -> f64 {
 }
 
 fn help() {
-    println!("{color_cyan}RUSDLE{color_reset}");
+    println!("{color_cyan}RUDLE{color_reset}");
     println!(
         "Welcome to {color_cyan}RUDLE{color_reset}! Please run the program with {bg_black}{color_bright_white}-h{color_reset}{bg_reset} for additional flags like hard mode! (or you can manually configure this inside the game)" 
     );
