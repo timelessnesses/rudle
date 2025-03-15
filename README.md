@@ -9,4 +9,4 @@ Execute the binary with `-h` for setting predefined options like loading another
 ## omg
 
 1 hour and 30 minutes well spent  
-[walalalala](./Screenshot 2025-03-16 013450.png)
+![walalalala](./Screenshot%202025-03-16%20013450.png)
